@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		93F35FBE2F9899AB009E8F06 /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 93F35FBD2F9899AB009E8F06 /* .gitignore */; };
 		93F35FC02F989B1C009E8F06 /* APIKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93F35FBF2F989B1C009E8F06 /* APIKey.swift */; };
+		93F35FC22F98B1AD009E8F06 /* .claudeignore in Resources */ = {isa = PBXBuildFile; fileRef = 93F35FC12F98B1AD009E8F06 /* .claudeignore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -34,6 +35,7 @@
 		93F35FA82F989879009E8F06 /* LSLP-iOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "LSLP-iOSUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		93F35FBD2F9899AB009E8F06 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		93F35FBF2F989B1C009E8F06 /* APIKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIKey.swift; sourceTree = "<group>"; };
+		93F35FC12F98B1AD009E8F06 /* .claudeignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .claudeignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -82,6 +84,7 @@
 		93F35F882F989877009E8F06 = {
 			isa = PBXGroup;
 			children = (
+				93F35FC12F98B1AD009E8F06 /* .claudeignore */,
 				93F35FBF2F989B1C009E8F06 /* APIKey.swift */,
 				93F35FBD2F9899AB009E8F06 /* .gitignore */,
 				93F35F932F989877009E8F06 /* LSLP-iOS */,
@@ -222,6 +225,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				93F35FBE2F9899AB009E8F06 /* .gitignore in Resources */,
+				93F35FC22F98B1AD009E8F06 /* .claudeignore in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
