@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		93F35FBE2F9899AB009E8F06 /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 93F35FBD2F9899AB009E8F06 /* .gitignore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		93F35F9F2F989879009E8F06 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +31,7 @@
 		93F35F912F989877009E8F06 /* LSLP-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "LSLP-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		93F35F9E2F989879009E8F06 /* LSLP-iOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "LSLP-iOSTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		93F35FA82F989879009E8F06 /* LSLP-iOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "LSLP-iOSUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		93F35FBD2F9899AB009E8F06 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -75,6 +80,7 @@
 		93F35F882F989877009E8F06 = {
 			isa = PBXGroup;
 			children = (
+				93F35FBD2F9899AB009E8F06 /* .gitignore */,
 				93F35F932F989877009E8F06 /* LSLP-iOS */,
 				93F35FA12F989879009E8F06 /* LSLP-iOSTests */,
 				93F35FAB2F989879009E8F06 /* LSLP-iOSUITests */,
@@ -212,6 +218,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				93F35FBE2F9899AB009E8F06 /* .gitignore in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
