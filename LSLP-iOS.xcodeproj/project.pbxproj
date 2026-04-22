@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		93F35FBE2F9899AB009E8F06 /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 93F35FBD2F9899AB009E8F06 /* .gitignore */; };
+		93F35FC02F989B1C009E8F06 /* APIKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93F35FBF2F989B1C009E8F06 /* APIKey.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -32,6 +33,7 @@
 		93F35F9E2F989879009E8F06 /* LSLP-iOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "LSLP-iOSTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		93F35FA82F989879009E8F06 /* LSLP-iOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "LSLP-iOSUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		93F35FBD2F9899AB009E8F06 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
+		93F35FBF2F989B1C009E8F06 /* APIKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIKey.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -80,6 +82,7 @@
 		93F35F882F989877009E8F06 = {
 			isa = PBXGroup;
 			children = (
+				93F35FBF2F989B1C009E8F06 /* APIKey.swift */,
 				93F35FBD2F9899AB009E8F06 /* .gitignore */,
 				93F35F932F989877009E8F06 /* LSLP-iOS */,
 				93F35FA12F989879009E8F06 /* LSLP-iOSTests */,
@@ -243,6 +246,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				93F35FC02F989B1C009E8F06 /* APIKey.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
