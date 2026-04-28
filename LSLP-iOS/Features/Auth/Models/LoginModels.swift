@@ -32,6 +32,15 @@ struct LoginResponse: Decodable, Sendable, Equatable {
     }
 }
 
+struct RefreshTokenResponse: Decodable, Sendable, Equatable {
+    let accessToken: String
+    let refreshToken: String
+
+    var tokens: AuthTokens {
+        AuthTokens(accessToken: accessToken, refreshToken: refreshToken)
+    }
+}
+
 extension LoginResponse: CustomStringConvertible {
     var description: String {
         """

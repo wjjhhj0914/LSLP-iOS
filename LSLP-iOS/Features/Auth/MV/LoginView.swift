@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct LoginView: View {
+    @EnvironmentObject private var authSession: AuthSession
     @State private var email = ""
     @State private var password = ""
     @State private var isLoading = false
@@ -19,7 +20,7 @@ struct LoginView: View {
     init(authService: (any AuthServicing)? = nil) {
         self.authService = authService ?? AuthService(
             session: .shared,
-            tokenStore: InMemoryTokenStore()
+            tokenStore: KeychainTokenStore(keychainManager: KeychainManager())
         )
     }
 
@@ -116,6 +117,7 @@ struct LoginView: View {
                 email: email.trimmingCharacters(in: .whitespacesAndNewlines),
                 password: password
             )
+            authSession.didLogin(with: response)
             successMessage = "\(response.nick)님 로그인 성공"
         } catch {
             errorMessage = error.localizedDescription
@@ -129,5 +131,6 @@ struct LoginView: View {
 struct LoginView_Previews: PreviewProvider {
     static var previews: some View {
         LoginView()
+            .environmentObject(AuthSession())
     }
 }

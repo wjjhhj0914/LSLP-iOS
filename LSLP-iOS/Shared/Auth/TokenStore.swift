@@ -10,6 +10,8 @@ import Foundation
 protocol TokenStore: Sendable {
     func save(_ tokens: AuthTokens) async throws
     func loadTokens() async throws -> AuthTokens?
+    func loadAccessToken() async throws -> String?
+    func loadRefreshToken() async throws -> String?
     func clear() async throws
 }
 
@@ -38,6 +40,14 @@ actor InMemoryTokenStore: TokenStore {
         cachedTokens
     }
 
+    func loadAccessToken() async throws -> String? {
+        cachedTokens?.accessToken
+    }
+
+    func loadRefreshToken() async throws -> String? {
+        cachedTokens?.refreshToken
+    }
+
     func clear() async throws {
         cachedTokens = nil
     }
@@ -46,7 +56,7 @@ actor InMemoryTokenStore: TokenStore {
 struct KeychainTokenStore: TokenStore {
     private let keychainManager: any KeychainManaging
 
-    init(keychainManager: any KeychainManaging) {
+    nonisolated init(keychainManager: any KeychainManaging) {
         self.keychainManager = keychainManager
     }
 
@@ -64,6 +74,14 @@ struct KeychainTokenStore: TokenStore {
         }
 
         return AuthTokens(accessToken: accessToken, refreshToken: refreshToken)
+    }
+
+    func loadAccessToken() async throws -> String? {
+        try await keychainManager.loadValue(for: TokenStorageKey.accessToken.rawValue)
+    }
+
+    func loadRefreshToken() async throws -> String? {
+        try await keychainManager.loadValue(for: TokenStorageKey.refreshToken.rawValue)
     }
 
     func clear() async throws {
