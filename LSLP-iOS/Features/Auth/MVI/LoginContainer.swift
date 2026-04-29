@@ -17,7 +17,7 @@ final class LoginContainer: ObservableObject {
     init(authService: (any AuthServicing)? = nil) {
         self.authService = authService ?? AuthService(
             session: .shared,
-            tokenStore: InMemoryTokenStore()
+            tokenStore: KeychainTokenStore(keychainManager: KeychainManager())
         )
     }
 
