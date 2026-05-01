@@ -20,9 +20,11 @@ final class HomeViewModel: ObservableObject {
     @Published private(set) var viewState: ViewState = .idle
     @Published private(set) var stores: [StoreSummary] = []
     @Published private(set) var popularStores: [StoreSummary] = []
+    @Published private(set) var banners: [MainBanner] = []
     @Published private(set) var isLoadingMore = false
 
     private let storeService: any StoreServicing
+    private let bannerService: any BannerServicing
     private let defaultRequest = StoreListRequest(
         longitude: 127.049914,
         latitude: 37.654215,
@@ -35,8 +37,12 @@ final class HomeViewModel: ObservableObject {
     private var hasLoadedInitialPage = false
     private var reachedLastPage = false
 
-    init(storeService: any StoreServicing = StoreService()) {
+    init(
+        storeService: any StoreServicing = StoreService(),
+        bannerService: any BannerServicing = BannerService()
+    ) {
         self.storeService = storeService
+        self.bannerService = bannerService
     }
 
     func loadInitialStores(accessToken: String) async throws {
@@ -55,6 +61,7 @@ final class HomeViewModel: ObservableObject {
 
             stores = response.data
             popularStores = []
+            banners = []
             nextCursor = response.nextCursor
             reachedLastPage = response.nextCursor == "0"
             viewState = .loaded
@@ -68,6 +75,13 @@ final class HomeViewModel: ObservableObject {
                 popularStores = []
                 print("Failed to load popular stores: \(error.localizedDescription)")
             }
+
+            do {
+                banners = try await bannerService.fetchMainBanners(accessToken: accessToken)
+            } catch {
+                banners = []
+                print("Failed to load main banners: \(error.localizedDescription)")
+            }
         } catch {
             hasLoadedInitialPage = false
             viewState = .error(error.localizedDescription)
@@ -79,6 +93,7 @@ final class HomeViewModel: ObservableObject {
         hasLoadedInitialPage = false
         stores = []
         popularStores = []
+        banners = []
         try await loadInitialStores(accessToken: accessToken)
     }
 

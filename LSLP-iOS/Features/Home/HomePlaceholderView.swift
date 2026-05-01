@@ -5,12 +5,16 @@
 //  Created by Codex on 4/26/26.
 //
 
+import Combine
 import SwiftUI
+import WebKit
 
 struct HomeView: View {
     @EnvironmentObject private var authSession: AuthSession
     @StateObject private var viewModel = HomeViewModel()
     @State private var selectedCategory = "디저트"
+    @State private var selectedBannerDestination: BannerDestination?
+    @State private var selectedBannerIndex = 0
 
     private let keywords = ["인기검색어", "스타벅스"]
     private let categories = [
@@ -40,6 +44,12 @@ struct HomeView: View {
             }
 
             HomeTabBar()
+        }
+        .sheet(item: $selectedBannerDestination) { destination in
+            BannerWebView(
+                url: destination.url,
+                accessToken: destination.accessToken
+            )
         }
         .task(id: authSession.state) {
             guard authSession.state == .authenticated else { return }
@@ -239,9 +249,42 @@ struct HomeView: View {
     }
 
     private var bannerSection: some View {
-        PromoBannerView()
-            .padding(.horizontal, 24)
-            .padding(.top, 18)
+        ZStack(alignment: .bottomTrailing) {
+            Group {
+                if viewModel.banners.isEmpty {
+                    PromoBannerView(banner: nil) { banner in
+                        Task {
+                            await presentBanner(banner)
+                        }
+                    }
+                } else {
+                    TabView(selection: $selectedBannerIndex) {
+                        ForEach(Array(viewModel.banners.enumerated()), id: \.element.id) { index, banner in
+                            PromoBannerView(banner: banner) { tappedBanner in
+                                Task {
+                                    await presentBanner(tappedBanner)
+                                }
+                            }
+                            .tag(index)
+                        }
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .frame(height: 108)
+                }
+            }
+
+            Text("\(min(selectedBannerIndex + 1, max(viewModel.banners.count, 1)))/\(max(viewModel.banners.count, 1))")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color.black.opacity(0.35))
+                .clipShape(Capsule())
+                .padding(.trailing, 18)
+                .padding(.bottom, 12)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 18)
     }
 
     private var pickSection: some View {
@@ -367,6 +410,28 @@ struct HomeView: View {
             print("Failed to retry store request: \(error.localizedDescription)")
         }
     }
+
+    @MainActor
+    private func presentBanner(_ banner: MainBanner) async {
+        guard let url = banner.resolvedPayloadURL else {
+            print("Invalid banner payload URL: \(banner.payload.value)")
+            return
+        }
+
+        let accessToken: String?
+
+        do {
+            accessToken = try await authSession.resolveAccessToken()
+        } catch {
+            print("Failed to resolve access token for banner: \(error.localizedDescription)")
+            accessToken = nil
+        }
+
+        selectedBannerDestination = BannerDestination(
+            url: url,
+            accessToken: accessToken
+        )
+    }
 }
 
 private struct SearchBarView: View {
@@ -490,6 +555,9 @@ private struct CompactStoreCardView: View {
 }
 
 private struct PromoBannerView: View {
+    let banner: MainBanner?
+    let onTap: (MainBanner) -> Void
+
     var body: some View {
         ZStack(alignment: .leading) {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
@@ -506,11 +574,11 @@ private struct PromoBannerView: View {
                 .frame(height: 108)
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("선택하면 처음 시작된다")
+                Text(banner == nil ? "선택하면 처음 시작된다" : "지금 진행 중인 이벤트")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(Color(red: 0.73, green: 0.78, blue: 0.69))
 
-                Text("피자부터 커피까지\n픽업하면 0원")
+                Text(bannerTitle)
                     .font(.system(size: 28, weight: .heavy))
                     .foregroundStyle(Color(red: 0.66, green: 0.73, blue: 0.59))
                     .lineSpacing(2)
@@ -520,39 +588,212 @@ private struct PromoBannerView: View {
             HStack {
                 Spacer()
 
-                ZStack {
-                    Circle()
-                        .fill(Color(red: 1.0, green: 0.74, blue: 0.22))
-                        .frame(width: 88, height: 88)
-                        .shadow(color: Color.orange.opacity(0.18), radius: 8, x: 0, y: 5)
-
-                    Image(systemName: "birthday.cake.fill")
-                        .font(.system(size: 34))
-                        .foregroundStyle(.white)
-
-                    Text("ONLY")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Color(red: 0.54, green: 0.61, blue: 0.45))
-                        .clipShape(Capsule())
-                        .rotationEffect(.degrees(-16))
-                        .offset(x: -34, y: -10)
-                }
+                bannerImage
                 .padding(.trailing, 22)
             }
 
-            Text("1/12")
-                .font(.system(size: 12, weight: .semibold))
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .onTapGesture {
+            guard let banner else { return }
+            onTap(banner)
+        }
+    }
+
+    private var bannerTitle: String {
+        guard let banner else {
+            return "피자부터 커피까지\n픽업하면 0원"
+        }
+
+        return "\(banner.name)\n지금 바로 확인하기"
+    }
+
+    @ViewBuilder
+    private var bannerImage: some View {
+        if let banner {
+            AuthenticatedBannerImageView(
+                url: banner.resolvedImageURL,
+                fallback: fallbackBannerBadge
+            )
+        } else {
+            fallbackBannerBadge
+        }
+    }
+
+    private var fallbackBannerBadge: some View {
+        ZStack {
+            Circle()
+                .fill(Color(red: 1.0, green: 0.74, blue: 0.22))
+                .frame(width: 88, height: 88)
+                .shadow(color: Color.orange.opacity(0.18), radius: 8, x: 0, y: 5)
+
+            Image(systemName: "birthday.cake.fill")
+                .font(.system(size: 34))
+                .foregroundStyle(.white)
+
+            Text("ONLY")
+                .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(Color.black.opacity(0.35))
+                .background(Color(red: 0.54, green: 0.61, blue: 0.45))
                 .clipShape(Capsule())
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                .padding(.trailing, 18)
-                .padding(.bottom, 12)
+                .rotationEffect(.degrees(-16))
+                .offset(x: -34, y: -10)
+        }
+    }
+}
+
+@MainActor
+private final class AuthenticatedImageLoader: ObservableObject {
+    enum Phase {
+        case idle
+        case loading
+        case success(UIImage)
+        case failure
+    }
+
+    @Published private(set) var phase: Phase = .idle
+
+    private var task: Task<Void, Never>?
+
+    func load(from url: URL?, accessToken: String?) {
+        task?.cancel()
+
+        guard let url else {
+            phase = .failure
+            return
+        }
+
+        phase = .loading
+
+        task = Task {
+            do {
+                let authorization = accessToken?.isEmpty == false ? accessToken : nil
+                let (data, response) = try await requestImage(from: url, authorization: authorization)
+
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("Image response was not HTTP for URL: \(url.absoluteString)")
+                    phase = .failure
+                    return
+                }
+
+                guard 200..<300 ~= httpResponse.statusCode else {
+                    let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? "unknown"
+                    let body = String(data: data, encoding: .utf8) ?? "binary"
+                    print(
+                        """
+                        [IMAGE RESPONSE FAILED]
+                        URL: \(url.absoluteString)
+                        Status: \(httpResponse.statusCode)
+                        Auth: \(authorization ?? "none")
+                        Content-Type: \(contentType)
+                        Body: \(body)
+                        """
+                    )
+                    phase = .failure
+                    return
+                }
+
+                guard let image = UIImage(data: data) else {
+                    let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? "unknown"
+                    print(
+                        """
+                        [IMAGE DECODE FAILED]
+                        URL: \(url.absoluteString)
+                        Auth: \(authorization ?? "none")
+                        Content-Type: \(contentType)
+                        Data Count: \(data.count)
+                        """
+                    )
+                    phase = .failure
+                    return
+                }
+
+                print("Image loaded successfully with auth: \(authorization ?? "none")")
+                phase = .success(image)
+            } catch {
+                if Task.isCancelled {
+                    return
+                }
+
+                print("Failed to load authenticated image: \(error.localizedDescription)")
+                phase = .failure
+            }
+        }
+    }
+
+    deinit {
+        task?.cancel()
+    }
+
+    private func requestImage(from url: URL, authorization: String?) async throws -> (Data, URLResponse) {
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 30
+        request.setValue(APIKey.SESAC_KEY, forHTTPHeaderField: "SeSACKey")
+        request.setValue("image/*", forHTTPHeaderField: "accept")
+        if let authorization {
+            request.setValue(authorization, forHTTPHeaderField: "Authorization")
+        }
+        return try await URLSession.shared.data(for: request)
+    }
+}
+
+private struct AuthenticatedBannerImageView<Fallback: View>: View {
+    @EnvironmentObject private var authSession: AuthSession
+    let url: URL?
+    let fallback: Fallback
+
+    @StateObject private var loader = AuthenticatedImageLoader()
+
+    var body: some View {
+        Group {
+            switch loader.phase {
+            case .idle, .loading:
+                ProgressView()
+                    .frame(width: 108, height: 88)
+
+            case let .success(image):
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 108, height: 88)
+
+            case .failure:
+                fallback
+            }
+        }
+        .task(id: url) {
+            loader.load(from: url, accessToken: authSession.accessToken)
+        }
+    }
+}
+
+private struct AuthenticatedStoreImageView<Loading: View, Fallback: View>: View {
+    @EnvironmentObject private var authSession: AuthSession
+    let url: URL?
+    let loading: Loading
+    let fallback: Fallback
+
+    @StateObject private var loader = AuthenticatedImageLoader()
+
+    var body: some View {
+        Group {
+            switch loader.phase {
+            case .idle, .loading:
+                loading
+
+            case let .success(image):
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+
+            case .failure:
+                fallback
+            }
+        }
+        .task(id: url) {
+            loader.load(from: url, accessToken: authSession.accessToken)
         }
     }
 }
@@ -672,26 +913,21 @@ private struct RemoteStoreImageView: View {
     let cornerRadius: CGFloat
 
     var body: some View {
-        AsyncImage(url: store.primaryImageURL) { phase in
-            switch phase {
-            case let .success(image):
-                image
-                    .resizable()
-                    .scaledToFill()
-            case .failure:
-                placeholder
-            case .empty:
-                ZStack {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(Color(.secondarySystemBackground))
-                    ProgressView()
-                }
-            @unknown default:
-                placeholder
-            }
-        }
+        AuthenticatedStoreImageView(
+            url: store.primaryImageURL,
+            loading: loadingPlaceholder,
+            fallback: placeholder
+        )
         .clipped()
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+
+    private var loadingPlaceholder: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+            ProgressView()
+        }
     }
 
     private var placeholder: some View {
@@ -784,6 +1020,87 @@ private struct TabItem: View {
                     : Color(red: 0.88, green: 0.88, blue: 0.88)
             )
             .frame(maxWidth: .infinity)
+    }
+}
+
+private struct BannerDestination: Identifiable {
+    let url: URL
+    let accessToken: String?
+
+    var id: String {
+        url.absoluteString
+    }
+}
+
+private struct BannerWebView: UIViewRepresentable {
+    let url: URL
+    let accessToken: String?
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(accessToken: accessToken)
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let contentController = WKUserContentController()
+        contentController.add(context.coordinator, name: "click_attendance_button")
+        contentController.add(context.coordinator, name: "complete_attendance")
+
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController = contentController
+
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = context.coordinator
+        webView.allowsBackForwardNavigationGestures = true
+
+        var request = URLRequest(url: url)
+        request.setValue(APIKey.SESAC_KEY, forHTTPHeaderField: "SeSACKey")
+        webView.load(request)
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        context.coordinator.accessToken = accessToken
+    }
+
+    static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "click_attendance_button")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "complete_attendance")
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+        var accessToken: String?
+
+        init(accessToken: String?) {
+            self.accessToken = accessToken
+        }
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            switch message.name {
+            case "click_attendance_button":
+                guard let accessToken, !accessToken.isEmpty else {
+                    print("Banner attendance requested without access token")
+                    return
+                }
+
+                let escapedToken = accessToken
+                    .replacingOccurrences(of: "\\", with: "\\\\")
+                    .replacingOccurrences(of: "'", with: "\\'")
+
+                message.webView?.evaluateJavaScript("requestAttendance('\(escapedToken)')") { _, error in
+                    if let error {
+                        print("Failed to send access token to banner web view: \(error.localizedDescription)")
+                    } else {
+                        print("Banner web view attendance token delivered")
+                    }
+                }
+
+            case "complete_attendance":
+                print("Banner attendance completed: \(message.body)")
+
+            default:
+                break
+            }
+        }
     }
 }
 
