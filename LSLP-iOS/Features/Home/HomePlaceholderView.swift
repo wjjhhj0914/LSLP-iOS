@@ -14,7 +14,6 @@ struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
     @State private var selectedCategory = "디저트"
     @State private var selectedBannerDestination: BannerDestination?
-    @State private var selectedBannerIndex = 0
 
     private let keywords = ["인기검색어", "스타벅스"]
     private let categories = [
@@ -249,39 +248,20 @@ struct HomeView: View {
     }
 
     private var bannerSection: some View {
-        ZStack(alignment: .bottomTrailing) {
-            Group {
-                if viewModel.banners.isEmpty {
-                    PromoBannerView(banner: nil) { banner in
-                        Task {
-                            await presentBanner(banner)
-                        }
+        Group {
+            if viewModel.banners.isEmpty {
+                PromoBannerView(banner: nil) { banner in
+                    Task {
+                        await presentBanner(banner)
                     }
-                } else {
-                    TabView(selection: $selectedBannerIndex) {
-                        ForEach(Array(viewModel.banners.enumerated()), id: \.element.id) { index, banner in
-                            PromoBannerView(banner: banner) { tappedBanner in
-                                Task {
-                                    await presentBanner(tappedBanner)
-                                }
-                            }
-                            .tag(index)
-                        }
+                }
+            } else {
+                BannerCarouselView(banners: viewModel.banners) { tappedBanner in
+                    Task {
+                        await presentBanner(tappedBanner)
                     }
-                    .tabViewStyle(.page(indexDisplayMode: .never))
-                    .frame(height: 108)
                 }
             }
-
-            Text("\(min(selectedBannerIndex + 1, max(viewModel.banners.count, 1)))/\(max(viewModel.banners.count, 1))")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(Color.black.opacity(0.35))
-                .clipShape(Capsule())
-                .padding(.trailing, 18)
-                .padding(.bottom, 12)
         }
         .padding(.horizontal, 24)
         .padding(.top, 18)
@@ -434,6 +414,68 @@ struct HomeView: View {
     }
 }
 
+private struct BannerCarouselView: View {
+    let banners: [MainBanner]
+    let onTap: (MainBanner) -> Void
+
+    @State private var selectedBannerIndex = 0
+
+    private let autoScrollIntervalNanoseconds: UInt64 = 10_000_000_000
+    private let bannerHeight: CGFloat = 92
+
+    var body: some View {
+        ZStack(alignment: .bottomTrailing) {
+            TabView(selection: $selectedBannerIndex) {
+                ForEach(Array(banners.enumerated()), id: \.element.id) { index, banner in
+                    PromoBannerView(banner: banner, onTap: onTap)
+                        .frame(height: bannerHeight)
+                        .tag(index)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: bannerHeight)
+
+            Text("\(min(selectedBannerIndex + 1, max(banners.count, 1)))/\(max(banners.count, 1))")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color.black.opacity(0.35))
+                .clipShape(Capsule())
+                .padding(.trailing, 18)
+                .padding(.bottom, 12)
+        }
+        .task(id: autoScrollKey) {
+            guard banners.count > 1 else {
+                selectedBannerIndex = 0
+                return
+            }
+
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: autoScrollIntervalNanoseconds)
+
+                guard !Task.isCancelled else { return }
+                guard !banners.isEmpty else { return }
+
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    selectedBannerIndex = (selectedBannerIndex + 1) % banners.count
+                }
+            }
+        }
+        .onChange(of: banners.count) { count in
+            if count == 0 {
+                selectedBannerIndex = 0
+            } else {
+                selectedBannerIndex = min(selectedBannerIndex, count - 1)
+            }
+        }
+    }
+
+    private var autoScrollKey: String {
+        banners.map(\.id).joined(separator: "|")
+    }
+}
+
 private struct SearchBarView: View {
     var body: some View {
         HStack(spacing: 10) {
@@ -555,45 +597,37 @@ private struct CompactStoreCardView: View {
 }
 
 private struct PromoBannerView: View {
+    @EnvironmentObject private var authSession: AuthSession
     let banner: MainBanner?
     let onTap: (MainBanner) -> Void
 
+    @StateObject private var loader = AuthenticatedImageLoader()
+    private let bannerHeight: CGFloat = 92
+
     var body: some View {
         ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.95, green: 0.96, blue: 0.89),
-                            Color(red: 0.92, green: 0.93, blue: 0.84)
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .frame(height: 108)
+            bannerBackground
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text(banner == nil ? "선택하면 처음 시작된다" : "지금 진행 중인 이벤트")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Color(red: 0.73, green: 0.78, blue: 0.69))
+            if shouldShowBannerText {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(banner == nil ? "선택하면 처음 시작된다" : "지금 진행 중인 이벤트")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color(red: 0.73, green: 0.78, blue: 0.69))
 
-                Text(bannerTitle)
-                    .font(.system(size: 28, weight: .heavy))
-                    .foregroundStyle(Color(red: 0.66, green: 0.73, blue: 0.59))
-                    .lineSpacing(2)
+                    Text(bannerTitle)
+                        .font(.system(size: 28, weight: .heavy))
+                        .foregroundStyle(Color(red: 0.66, green: 0.73, blue: 0.59))
+                        .lineSpacing(2)
+                }
+                .padding(.horizontal, 22)
             }
-            .padding(.leading, 22)
-
-            HStack {
-                Spacer()
-
-                bannerImage
-                .padding(.trailing, 22)
-            }
-
         }
+        .frame(height: bannerHeight)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .task(id: bannerLoadKey) {
+            loader.load(from: banner?.resolvedImageURL, accessToken: authSession.accessToken)
+        }
         .onTapGesture {
             guard let banner else { return }
             onTap(banner)
@@ -609,15 +643,60 @@ private struct PromoBannerView: View {
     }
 
     @ViewBuilder
-    private var bannerImage: some View {
-        if let banner {
-            AuthenticatedBannerImageView(
-                url: banner.resolvedImageURL,
-                fallback: fallbackBannerBadge
-            )
-        } else {
-            fallbackBannerBadge
+    private var bannerBackground: some View {
+        switch loader.phase {
+        case let .success(image):
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+        case .idle, .loading, .failure:
+            defaultBackground
+                .overlay(alignment: .trailing) {
+                    if banner == nil {
+                        fallbackBannerBadge
+                            .padding(.trailing, 22)
+                    }
+                }
+                .overlay {
+                    if case .loading = loader.phase, banner != nil {
+                        ProgressView()
+                    }
+                }
         }
+    }
+
+    private var shouldShowBannerText: Bool {
+        if banner == nil {
+            return true
+        }
+
+        if case .success = loader.phase {
+            return false
+        }
+
+        return true
+    }
+
+    private var bannerLoadKey: String {
+        let url = banner?.resolvedImageURL?.absoluteString ?? "nil"
+        let token = authSession.accessToken ?? "nil"
+        return "\(url)|\(token)"
+    }
+
+    private var defaultBackground: some View {
+        RoundedRectangle(cornerRadius: 22, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.95, green: 0.96, blue: 0.89),
+                        Color(red: 0.92, green: 0.93, blue: 0.84)
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
     }
 
     private var fallbackBannerBadge: some View {
@@ -750,19 +829,21 @@ private struct AuthenticatedBannerImageView<Fallback: View>: View {
         Group {
             switch loader.phase {
             case .idle, .loading:
-                ProgressView()
-                    .frame(width: 108, height: 88)
+                ZStack {
+                    fallback
+                    ProgressView()
+                }
 
             case let .success(image):
                 Image(uiImage: image)
                     .resizable()
-                    .scaledToFit()
-                    .frame(width: 108, height: 88)
+                    .scaledToFill()
 
             case .failure:
                 fallback
             }
         }
+        .clipped()
         .task(id: url) {
             loader.load(from: url, accessToken: authSession.accessToken)
         }
@@ -792,6 +873,7 @@ private struct AuthenticatedStoreImageView<Loading: View, Fallback: View>: View 
                 fallback
             }
         }
+        .clipped()
         .task(id: url) {
             loader.load(from: url, accessToken: authSession.accessToken)
         }
@@ -871,8 +953,7 @@ private struct ImageMosaicView: View {
         HStack(spacing: 8) {
             ZStack(alignment: .topLeading) {
                 RemoteStoreImageView(store: store, cornerRadius: 18)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 208)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 Circle()
                     .fill(Color.white.opacity(0.94))
@@ -897,6 +978,8 @@ private struct ImageMosaicView: View {
                         .padding(.trailing, 10)
                 }
             }
+            .frame(maxWidth: .infinity)
+            .frame(height: 208)
 
             VStack(spacing: 8) {
                 ForEach(0..<2, id: \.self) { _ in
@@ -905,6 +988,7 @@ private struct ImageMosaicView: View {
                 }
             }
         }
+        .frame(height: 208)
     }
 }
 
