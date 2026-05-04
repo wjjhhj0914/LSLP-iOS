@@ -34,36 +34,10 @@ struct BannerPayload: Decodable, Sendable, Equatable {
 
 extension MainBanner {
     var resolvedImageURL: URL? {
-        if imageURL.hasPrefix("http://") || imageURL.hasPrefix("https://") {
-            return URL(string: imageURL)
-        }
-
-        guard let baseURL = URL(string: APIKey.BASE_URL), let host = baseURL.host else {
-            return nil
-        }
-
-        var components = URLComponents()
-        components.scheme = baseURL.scheme
-        components.host = host
-        components.port = baseURL.port
-        components.path = imageURL.hasPrefix("/") ? imageURL : "/" + imageURL
-        return components.url
+        APIURLResolver.resolve(path: imageURL)
     }
 
     var resolvedPayloadURL: URL? {
-        if payload.value.hasPrefix("http://") || payload.value.hasPrefix("https://") {
-            return URL(string: payload.value)
-        }
-
-        guard let baseURL = URL(string: APIKey.BASE_URL), let host = baseURL.host else {
-            return nil
-        }
-
-        var components = URLComponents()
-        components.scheme = baseURL.scheme
-        components.host = host
-        components.port = baseURL.port
-        components.path = payload.value.hasPrefix("/") ? payload.value : "/" + payload.value
-        return components.url
+        APIURLResolver.resolve(path: payload.value)
     }
 }

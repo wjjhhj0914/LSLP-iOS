@@ -119,20 +119,7 @@ extension StoreSummary {
             return nil
         }
 
-        if firstImagePath.hasPrefix("http://") || firstImagePath.hasPrefix("https://") {
-            return URL(string: firstImagePath)
-        }
-
-        guard let baseURL = URL(string: APIKey.BASE_URL), let host = baseURL.host else {
-            return nil
-        }
-
-        var components = URLComponents()
-        components.scheme = baseURL.scheme
-        components.host = host
-        components.port = baseURL.port
-        components.path = firstImagePath.hasPrefix("/") ? firstImagePath : "/" + firstImagePath
-        return components.url
+        return APIURLResolver.resolve(path: firstImagePath)
     }
 
     var formattedDistance: String {
