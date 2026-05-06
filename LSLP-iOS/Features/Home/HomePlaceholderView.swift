@@ -11,9 +11,11 @@ import WebKit
 
 struct HomeView: View {
     @EnvironmentObject private var authSession: AuthSession
+    @EnvironmentObject private var appTabRouter: AppTabRouter
     @StateObject private var viewModel = HomeViewModel()
     @State private var selectedCategory = "디저트"
     @State private var selectedBannerDestination: BannerDestination?
+    @State private var selectedStore: StoreSummary?
 
     private let keywords = ["인기검색어", "스타벅스"]
     private let categories = [
@@ -25,7 +27,7 @@ struct HomeView: View {
     ]
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             Color(.systemGroupedBackground)
                 .ignoresSafeArea()
 
@@ -41,14 +43,17 @@ struct HomeView: View {
                     errorView(message: message)
                 }
             }
-
-            HomeTabBar()
         }
         .sheet(item: $selectedBannerDestination) { destination in
             BannerWebView(
                 url: destination.url,
                 accessToken: destination.accessToken
             )
+        }
+        .fullScreenCover(item: $selectedStore) { store in
+            StoreDetailView(storeID: store.storeID)
+                .environmentObject(authSession)
+                .environmentObject(appTabRouter)
         }
         .task(id: authSession.state) {
             guard authSession.state == .authenticated else { return }
@@ -228,6 +233,9 @@ struct HomeView: View {
                     ForEach(popularStores) { store in
                         CompactStoreCardView(store: store)
                             .frame(width: 250)
+                            .onTapGesture {
+                                selectedStore = store
+                            }
                             .onAppear {
                                 Task {
                                     await loadMoreIfNeeded(currentItem: store)
@@ -292,6 +300,9 @@ struct HomeView: View {
                 ForEach(pickStores) { store in
                     FeaturedStoreCardView(store: store)
                         .padding(.horizontal, 24)
+                        .onTapGesture {
+                            selectedStore = store
+                        }
                         .onAppear {
                             Task {
                                 await loadMoreIfNeeded(currentItem: store)
@@ -725,6 +736,10 @@ private struct PromoBannerView: View {
 
 @MainActor
 private final class AuthenticatedImageLoader: ObservableObject {
+    private enum ImageLoadError: Error {
+        case accessTokenExpired
+    }
+
     enum Phase {
         case idle
         case loading
@@ -736,7 +751,11 @@ private final class AuthenticatedImageLoader: ObservableObject {
 
     private var task: Task<Void, Never>?
 
-    func load(from url: URL?, accessToken: String?) {
+    func load(
+        from url: URL?,
+        accessToken: String?,
+        refreshAccessToken: (@Sendable () async throws -> String)? = nil
+    ) {
         task?.cancel()
 
         guard let url else {
@@ -749,48 +768,18 @@ private final class AuthenticatedImageLoader: ObservableObject {
         task = Task {
             do {
                 let authorization = accessToken?.isEmpty == false ? accessToken : nil
-                let (data, response) = try await requestImage(from: url, authorization: authorization)
 
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    print("Image response was not HTTP for URL: \(url.absoluteString)")
-                    phase = .failure
-                    return
+                do {
+                    try await loadImage(from: url, authorization: authorization)
+                } catch ImageLoadError.accessTokenExpired {
+                    guard let refreshAccessToken else {
+                        phase = .failure
+                        return
+                    }
+
+                    let refreshedAccessToken = try await refreshAccessToken()
+                    try await loadImage(from: url, authorization: refreshedAccessToken)
                 }
-
-                guard 200..<300 ~= httpResponse.statusCode else {
-                    let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? "unknown"
-                    let body = String(data: data, encoding: .utf8) ?? "binary"
-                    print(
-                        """
-                        [IMAGE RESPONSE FAILED]
-                        URL: \(url.absoluteString)
-                        Status: \(httpResponse.statusCode)
-                        Auth: \(authorization ?? "none")
-                        Content-Type: \(contentType)
-                        Body: \(body)
-                        """
-                    )
-                    phase = .failure
-                    return
-                }
-
-                guard let image = UIImage(data: data) else {
-                    let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? "unknown"
-                    print(
-                        """
-                        [IMAGE DECODE FAILED]
-                        URL: \(url.absoluteString)
-                        Auth: \(authorization ?? "none")
-                        Content-Type: \(contentType)
-                        Data Count: \(data.count)
-                        """
-                    )
-                    phase = .failure
-                    return
-                }
-
-                print("Image loaded successfully with auth: \(authorization ?? "none")")
-                phase = .success(image)
             } catch {
                 if Task.isCancelled {
                     return
@@ -804,6 +793,55 @@ private final class AuthenticatedImageLoader: ObservableObject {
 
     deinit {
         task?.cancel()
+    }
+
+    private func loadImage(from url: URL, authorization: String?) async throws {
+        let (data, response) = try await requestImage(from: url, authorization: authorization)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            print("Image response was not HTTP for URL: \(url.absoluteString)")
+            phase = .failure
+            return
+        }
+
+        if httpResponse.statusCode == 419 {
+            throw ImageLoadError.accessTokenExpired
+        }
+
+        guard 200..<300 ~= httpResponse.statusCode else {
+            let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? "unknown"
+            let body = String(data: data, encoding: .utf8) ?? "binary"
+            print(
+                """
+                [IMAGE RESPONSE FAILED]
+                URL: \(url.absoluteString)
+                Status: \(httpResponse.statusCode)
+                Auth: \(authorization ?? "none")
+                Content-Type: \(contentType)
+                Body: \(body)
+                """
+            )
+            phase = .failure
+            return
+        }
+
+        guard let image = UIImage(data: data) else {
+            let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? "unknown"
+            print(
+                """
+                [IMAGE DECODE FAILED]
+                URL: \(url.absoluteString)
+                Auth: \(authorization ?? "none")
+                Content-Type: \(contentType)
+                Data Count: \(data.count)
+                """
+            )
+            phase = .failure
+            return
+        }
+
+        print("Image loaded successfully with auth: \(authorization ?? "none")")
+        phase = .success(image)
     }
 
     private func requestImage(from url: URL, authorization: String?) async throws -> (Data, URLResponse) {
@@ -845,7 +883,13 @@ private struct AuthenticatedBannerImageView<Fallback: View>: View {
         }
         .clipped()
         .task(id: url) {
-            loader.load(from: url, accessToken: authSession.accessToken)
+            loader.load(
+                from: url,
+                accessToken: authSession.accessToken,
+                refreshAccessToken: {
+                    try await authSession.refreshAccessToken()
+                }
+            )
         }
     }
 }
@@ -875,7 +919,13 @@ private struct AuthenticatedStoreImageView<Loading: View, Fallback: View>: View 
         }
         .clipped()
         .task(id: url) {
-            loader.load(from: url, accessToken: authSession.accessToken)
+            loader.load(
+                from: url,
+                accessToken: authSession.accessToken,
+                refreshAccessToken: {
+                    try await authSession.refreshAccessToken()
+                }
+            )
         }
     }
 }
@@ -901,48 +951,57 @@ private struct FeaturedStoreCardView: View {
     let store: StoreSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 0) {
             ImageMosaicView(store: store)
 
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(store.name)
-                    .font(.system(size: 20, weight: .heavy))
-                    .foregroundStyle(Color(red: 0.19, green: 0.21, blue: 0.17))
-                    .lineLimit(1)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(store.name)
+                        .font(.system(size: 20, weight: .heavy))
+                        .foregroundStyle(Color(red: 0.19, green: 0.21, blue: 0.17))
+                        .lineLimit(1)
 
-                Label("\(store.pickCount)개", systemImage: "heart.fill")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Color(red: 0.97, green: 0.71, blue: 0.18))
+                    Label("\(store.pickCount)개", systemImage: "heart.fill")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(Color(red: 0.97, green: 0.71, blue: 0.18))
 
-                Label(String(format: "%.1f", store.totalRating), systemImage: "star.fill")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Color(red: 0.98, green: 0.75, blue: 0.16))
+                    Label(String(format: "%.1f", store.totalRating), systemImage: "star.fill")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(Color(red: 0.98, green: 0.75, blue: 0.16))
 
-                Text("(\(store.totalReviewCount))")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Color.secondary)
-            }
+                    Text("(\(store.totalReviewCount))")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Color.secondary)
+                }
 
-            HStack(spacing: 16) {
-                MetaItem(icon: "paperplane.fill", value: store.formattedDistance)
-                MetaItem(icon: "clock.fill", value: store.close)
-                MetaItem(icon: "figure.run", value: "\(store.totalOrderCount)회")
-            }
+                HStack(spacing: 16) {
+                    MetaItem(icon: "paperplane.fill", value: store.formattedDistance)
+                    MetaItem(icon: "clock.fill", value: store.close)
+                    MetaItem(icon: "figure.run", value: "\(store.totalOrderCount)회")
+                }
 
-            if !store.hashTags.isEmpty {
-                HStack(spacing: 8) {
-                    ForEach(Array(store.hashTags.prefix(2)), id: \.self) { tag in
-                        Text(tag)
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(Color.white)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color(red: 0.70, green: 0.78, blue: 0.64))
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                if !store.hashTags.isEmpty {
+                    HStack(spacing: 8) {
+                        ForEach(Array(store.hashTags.prefix(2)), id: \.self) { tag in
+                            Text(tag)
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(Color.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Color(red: 0.70, green: 0.78, blue: 0.64))
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
                     }
                 }
             }
+            .padding(.horizontal, 14)
+            .padding(.top, 14)
+            .padding(.bottom, 16)
+            .background(Color.white)
         }
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .shadow(color: Color.black.opacity(0.05), radius: 12, x: 0, y: 8)
     }
 }
 
@@ -989,6 +1048,7 @@ private struct ImageMosaicView: View {
             }
         }
         .frame(height: 208)
+        .clipped()
     }
 }
 
@@ -1053,57 +1113,6 @@ private struct MetaItem: View {
         }
         .font(.system(size: 13, weight: .medium))
         .foregroundStyle(Color(red: 0.57, green: 0.62, blue: 0.55))
-    }
-}
-
-private struct HomeTabBar: View {
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(Color.white.opacity(0.98))
-                .frame(height: 82)
-                .shadow(color: Color.black.opacity(0.08), radius: 18, x: 0, y: -4)
-
-            HStack {
-                TabItem(icon: "house.fill", isSelected: true)
-                TabItem(icon: "doc.text.fill", isSelected: false)
-
-                Spacer()
-                    .frame(width: 74)
-
-                TabItem(icon: "person.3.fill", isSelected: false)
-                TabItem(icon: "person.fill", isSelected: false)
-            }
-            .padding(.horizontal, 34)
-
-            Circle()
-                .fill(Color(red: 0.64, green: 0.71, blue: 0.57))
-                .frame(width: 68, height: 68)
-                .overlay(
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundStyle(.white)
-                )
-                .offset(y: -20)
-        }
-        .padding(.horizontal, 22)
-        .padding(.bottom, 10)
-    }
-}
-
-private struct TabItem: View {
-    let icon: String
-    let isSelected: Bool
-
-    var body: some View {
-        Image(systemName: icon)
-            .font(.system(size: 24, weight: .semibold))
-            .foregroundStyle(
-                isSelected
-                    ? Color(red: 0.49, green: 0.58, blue: 0.43)
-                    : Color(red: 0.88, green: 0.88, blue: 0.88)
-            )
-            .frame(maxWidth: .infinity)
     }
 }
 

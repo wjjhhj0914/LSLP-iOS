@@ -37,7 +37,13 @@ struct StoreService: StoreServicing {
 
         logRequest(urlRequest)
 
-        let (data, response) = try await session.data(for: urlRequest)
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await session.data(for: urlRequest)
+        } catch {
+            logTransportError(error, request: urlRequest)
+            throw error
+        }
         logResponse(response, data: data)
 
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -83,7 +89,13 @@ struct StoreService: StoreServicing {
 
         logRequest(urlRequest)
 
-        let (data, response) = try await session.data(for: urlRequest)
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await session.data(for: urlRequest)
+        } catch {
+            logTransportError(error, request: urlRequest)
+            throw error
+        }
         logResponse(response, data: data)
 
         try validate(response: response, data: data)
@@ -171,6 +183,7 @@ struct StoreService: StoreServicing {
             [STORES REQUEST]
             URL: \(request.url?.absoluteString ?? "nil")
             Method: \(request.httpMethod ?? "nil")
+            ATS Base URL: \(APIKey.BASE_URL)
             Headers: \(headers)
             """
         )
@@ -185,6 +198,21 @@ struct StoreService: StoreServicing {
             [STORES RESPONSE]
             Status: \(statusCode)
             Body: \(responseBody)
+            """
+        )
+    }
+
+    private nonisolated func logTransportError(_ error: Error, request: URLRequest) {
+        let nsError = error as NSError
+
+        print(
+            """
+            [STORES TRANSPORT ERROR]
+            URL: \(request.url?.absoluteString ?? "nil")
+            Domain: \(nsError.domain)
+            Code: \(nsError.code)
+            Description: \(nsError.localizedDescription)
+            UserInfo: \(nsError.userInfo)
             """
         )
     }
