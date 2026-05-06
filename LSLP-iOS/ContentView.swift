@@ -18,7 +18,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             case .authenticated:
-                HomeView()
+                MainTabContainerView()
 
             case .unauthenticated:
                 LoginView(authService: authSession.makeAuthService())
