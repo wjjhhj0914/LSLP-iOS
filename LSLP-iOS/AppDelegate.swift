@@ -85,6 +85,7 @@ extension AppDelegate: MessagingDelegate {
     }
     
     print("FCM registration token: \(fcmToken)")
+    UserDefaults.standard.set(fcmToken, forKey: "fcmToken")
   }
 }
 #endif

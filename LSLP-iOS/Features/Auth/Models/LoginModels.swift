@@ -10,6 +10,7 @@ import Foundation
 struct LoginRequest: Encodable, Sendable {
     let email: String
     let password: String
+    let deviceToken: String?
 }
 
 struct LoginResponse: Decodable, Sendable, Equatable {

@@ -25,8 +25,9 @@ struct AuthService: AuthServicing {
     }
 
     nonisolated func login(email: String, password: String) async throws -> LoginResponse {
+        let fcmToken = UserDefaults.standard.string(forKey: "fcmToken")
         let request = try await makeLoginRequest(
-            body: LoginRequest(email: email, password: password)
+            body: LoginRequest(email: email, password: password, deviceToken: fcmToken)
         )
 
         logRequest(request, email: email)
