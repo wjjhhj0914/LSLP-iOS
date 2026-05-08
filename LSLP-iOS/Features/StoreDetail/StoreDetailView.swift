@@ -781,19 +781,19 @@ struct AuthenticatedImage: View {
     @StateObject private var loader = DetailImageLoader()
 
     var body: some View {
-        Group {
+        ZStack {
             switch loader.phase {
             case .idle, .loading:
-                ZStack {
-                    RoundedRectangle(cornerRadius: 0)
-                        .fill(Color(red: 0.94, green: 0.96, blue: 0.91))
-                    ProgressView()
-                }
+                RoundedRectangle(cornerRadius: 0)
+                    .fill(Color(red: 0.94, green: 0.96, blue: 0.91))
+
+                ProgressView()
 
             case let .success(image):
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             case .failure:
                 RoundedRectangle(cornerRadius: 0)
@@ -805,7 +805,57 @@ struct AuthenticatedImage: View {
                     )
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
         .clipped()
+        .task(id: "\(url?.absoluteString ?? "nil")|\(authSession.accessToken ?? "nil")") {
+            loader.load(
+                url: url,
+                accessToken: authSession.accessToken,
+                refreshAccessToken: {
+                    try await authSession.refreshAccessToken()
+                }
+            )
+        }
+    }
+}
+
+struct AuthenticatedCroppedImage: View {
+    @EnvironmentObject private var authSession: AuthSession
+    let url: URL?
+
+    @StateObject private var loader = DetailImageLoader()
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                switch loader.phase {
+                case .idle, .loading:
+                    RoundedRectangle(cornerRadius: 0)
+                        .fill(Color(red: 0.94, green: 0.96, blue: 0.91))
+
+                    ProgressView()
+
+                case let .success(image):
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+
+                case .failure:
+                    RoundedRectangle(cornerRadius: 0)
+                        .fill(Color(red: 0.94, green: 0.96, blue: 0.91))
+                        .overlay(
+                            Image(systemName: "photo")
+                                .font(.system(size: 28, weight: .bold))
+                                .foregroundStyle(Color(red: 0.65, green: 0.71, blue: 0.59))
+                        )
+                }
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .contentShape(Rectangle())
+            .clipped()
+        }
         .task(id: "\(url?.absoluteString ?? "nil")|\(authSession.accessToken ?? "nil")") {
             loader.load(
                 url: url,
