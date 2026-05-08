@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		935288142FAB1CFB0012CF28 /* iamport-ios in Frameworks */ = {isa = PBXBuildFile; productRef = 935288132FAB1CFB0012CF28 /* iamport-ios */; };
+		9360A1113F10000100AA1001 /* SnapKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9360A1103F10000100AA1001 /* SnapKit */; };
+		9360A1133F10000100AA1001 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 9360A1123F10000100AA1001 /* SocketIO */; };
 		93F35FBE2F9899AB009E8F06 /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 93F35FBD2F9899AB009E8F06 /* .gitignore */; };
 		93F35FC02F989B1C009E8F06 /* APIKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93F35FBF2F989B1C009E8F06 /* APIKey.swift */; };
 		93F35FC22F98B1AD009E8F06 /* .claudeignore in Resources */ = {isa = PBXBuildFile; fileRef = 93F35FC12F98B1AD009E8F06 /* .claudeignore */; };
@@ -63,6 +66,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				935288142FAB1CFB0012CF28 /* iamport-ios in Frameworks */,
+				9360A1113F10000100AA1001 /* SnapKit in Frameworks */,
+				9360A1133F10000100AA1001 /* SocketIO in Frameworks */,
 				93F361732FA08585009E8F06 /* FirebaseMessaging in Frameworks */,
 				93F361712FA08585009E8F06 /* FirebaseAnalytics in Frameworks */,
 			);
@@ -130,6 +136,9 @@
 			packageProductDependencies = (
 				93F361702FA08585009E8F06 /* FirebaseAnalytics */,
 				93F361722FA08585009E8F06 /* FirebaseMessaging */,
+				935288132FAB1CFB0012CF28 /* iamport-ios */,
+				9360A1103F10000100AA1001 /* SnapKit */,
+				9360A1123F10000100AA1001 /* SocketIO */,
 			);
 			productName = "LSLP-iOS";
 			productReference = 93F35F912F989877009E8F06 /* LSLP-iOS.app */;
@@ -215,6 +224,9 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				93F3616F2FA08585009E8F06 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				935288122FAB1CFB0012CF28 /* XCRemoteSwiftPackageReference "iamport-ios" */,
+				9360A10E3F10000100AA1001 /* XCRemoteSwiftPackageReference "SnapKit" */,
+				9360A10F3F10000100AA1001 /* XCRemoteSwiftPackageReference "socket" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 93F35F922F989877009E8F06 /* Products */;
@@ -426,7 +438,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -455,7 +467,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -599,6 +611,30 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		935288122FAB1CFB0012CF28 /* XCRemoteSwiftPackageReference "iamport-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/iamport/iamport-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.4.7;
+			};
+		};
+		9360A10E3F10000100AA1001 /* XCRemoteSwiftPackageReference "SnapKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SnapKit/SnapKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.7.1;
+			};
+		};
+		9360A10F3F10000100AA1001 /* XCRemoteSwiftPackageReference "socket" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/socketio/socket.io-client-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 16.1.1;
+			};
+		};
 		93F3616F2FA08585009E8F06 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
@@ -610,6 +646,21 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		935288132FAB1CFB0012CF28 /* iamport-ios */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 935288122FAB1CFB0012CF28 /* XCRemoteSwiftPackageReference "iamport-ios" */;
+			productName = "iamport-ios";
+		};
+		9360A1103F10000100AA1001 /* SnapKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9360A10E3F10000100AA1001 /* XCRemoteSwiftPackageReference "SnapKit" */;
+			productName = SnapKit;
+		};
+		9360A1123F10000100AA1001 /* SocketIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9360A10F3F10000100AA1001 /* XCRemoteSwiftPackageReference "socket" */;
+			productName = SocketIO;
+		};
 		93F361702FA08585009E8F06 /* FirebaseAnalytics */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 93F3616F2FA08585009E8F06 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;

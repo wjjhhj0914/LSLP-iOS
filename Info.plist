@@ -81,6 +81,13 @@
 		<true/>
 		<key>NSExceptionDomains</key>
 		<dict>
+			<key>estate.sesac.kr</key>
+			<dict>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
 			<key>pickup.sesac.kr</key>
 			<dict>
 				<key>NSIncludesSubdomains</key>
