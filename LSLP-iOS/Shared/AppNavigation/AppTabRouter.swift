@@ -11,6 +11,7 @@ import SwiftUI
 enum AppTab: Int {
     case home
     case orders
+    case community
     case pickup
     case profile
 }
@@ -19,6 +20,7 @@ enum AppTab: Int {
 final class AppTabRouter: ObservableObject {
     @Published var selectedTab: AppTab = .home
     @Published var currentOrder: ValidatedOrderItem?
+    @Published var isRootTabBarHidden = false
 
     func showOrderDetail(_ order: ValidatedOrderItem) {
         currentOrder = order
@@ -38,22 +40,18 @@ struct MainTabContainerView: View {
                     HomeView()
                 case .orders:
                     OrdersTabView()
+                case .community:
+                    CommunityMainView()
                 case .pickup:
-                    PlaceholderTabView(
-                        title: "픽업",
-                        systemImage: "sparkles",
-                        description: "준비 중인 화면입니다."
-                    )
+                    VideoListView()
                 case .profile:
-                    PlaceholderTabView(
-                        title: "마이",
-                        systemImage: "person.fill",
-                        description: "준비 중인 화면입니다."
-                    )
+                    ChatRoomsView()
                 }
             }
 
-            RootTabBar(selectedTab: $appTabRouter.selectedTab)
+            if !appTabRouter.isRootTabBarHidden {
+                RootTabBar(selectedTab: $appTabRouter.selectedTab)
+            }
         }
     }
 }
@@ -133,12 +131,12 @@ private struct RootTabBar: View {
 
                 RootTabBarItem(
                     icon: "person.3.fill",
-                    isSelected: selectedTab == .pickup
+                    isSelected: selectedTab == .community
                 ) {
-                    selectedTab = .pickup
+                    selectedTab = .community
                 }
                 RootTabBarItem(
-                    icon: "person.fill",
+                    icon: "message.fill",
                     isSelected: selectedTab == .profile
                 ) {
                     selectedTab = .profile
@@ -153,8 +151,8 @@ private struct RootTabBar: View {
                     .fill(Color(red: 0.64, green: 0.71, blue: 0.57))
                     .frame(width: 68, height: 68)
                     .overlay(
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 28, weight: .bold))
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 26, weight: .bold))
                             .foregroundStyle(.white)
                     )
             }
